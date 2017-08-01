@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -e
+
+export JAVA_HOME=/var/vcap/packages/jdk8/jdk
+export PIDFILE=/var/vcap/sys/run/namenode/pid
+
+export LOG_DIR=/var/vcap/sys/log/namenode
+export RUN_DIR=/var/vcap/sys/run/namenode
+export HADOOP_GROUP=vcap
+export HADOOP_LOG_DIR=$LOG_DIR
+
+export JSVC_HOME=/var/vcap/packages/hadoop/commons-daemon
+export HADOOP_CONF_DIR=/var/vcap/jobs/namenode/config
+
+export DFS_NAME_DIR=<%= p('namenode.name_dir') %>
+export FS_CHECKPOINT_DIR=<%= p('namenode.checkpoint_dir') %>
+export DFS_DATA_DIR=<%= p('datanode.data_dir') %>
+
+export PATH=$PATH:/var/vcap/packages/hadoop/bin
+
+case $1 in
+
+  start)
+    mkdir -p $LOG_DIR $RUN_DIR $HADOOOP_CONF_DIR
+    chown -R vcap:vcap $LOG_DIR $RUN_DIR $HADOOOP_CONF_DIR
+
+    echo $$ > $PIDFILE
+
+    # Create and format namenode directory
+    if [ ! -d $DFS_NAME_DIR ]; then
+      mkdir -p $DFS_NAME_DIR
+      chown -R vcap:vcap $DFS_NAME_DIR;
+      chmod -R 755 $DFS_NAME_DIR;
+      sudo -E -u vcap hdfs namenode -format >>$LOG_DIR/$JOB_NAME.stdout.log 2>>$LOG_DIR/$JOB_NAME.stderr.log
+    fi
+
+    # Start namenode
+    exec chpst -u vcap:vcap hdfs namenode >>$LOG_DIR/$JOB_NAME.stdout.log 2>>$LOG_DIR/$JOB_NAME.stderr.log
+    ;;
+
+  stop)
+    if [ -f $PIDFILE ]; then
+      kill -9 `cat $PIDFILE` || true
+      rm -f $PIDFILE
+    fi
+    ;;
+
+  status)
+    exec chpst -u vcap:vcap hdfs dfsadmin -report
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop|status}"
+    exit 1
+    ;;
+
+esac
+exit 0

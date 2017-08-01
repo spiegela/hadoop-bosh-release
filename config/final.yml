@@ -1,0 +1,6 @@
+---
+blobstore:
+  provider: s3
+  options:
+    bucket_name: hadoop-bosh-release
+final_name: hadoop
